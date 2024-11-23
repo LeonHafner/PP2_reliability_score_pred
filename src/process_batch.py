@@ -3,7 +3,6 @@
 # python process_batch train_X.csv output_folder/
 # train_X.csvs are on Google Drive
 
-
 import time
 import os 
 import torch 
@@ -15,7 +14,6 @@ from utils import *
 import random 
 import matplotlib.pyplot as plt
 import sys
-
 
 def get_categorical_jacobian(seq, model, alphabet, device):
   # ∂in/∂out
@@ -43,25 +41,6 @@ def get_contacts(x, symm=True, center=True, rm=1):
     j_fn_corrected = (j_fn_corrected + j_fn_corrected.T)/2
   return j_fn_corrected
 
-def do_apc(x, rm=1):
-  '''given matrix do apc correction'''
-  # trying to remove different number of components
-  # rm=0 remove none
-  # rm=1 apc
-  x = np.copy(x)
-  if rm == 0:
-    return x
-  elif rm == 1:
-    a1 = x.sum(0,keepdims=True)
-    a2 = x.sum(1,keepdims=True)
-    y = x - (a1*a2)/x.sum()
-  else:
-    # decompose matrix, rm largest(s) eigenvectors
-    u,s,v = np.linalg.svd(x)
-    y = s[rm:] * u[:,rm:] @ v[rm:,:]
-  np.fill_diagonal(y,0)
-  return y
-
 def main():
     # Usage
     # pip install tqdm scipy numpy jax h5py
@@ -71,8 +50,6 @@ def main():
     out_folder = sys.argv[2]
     print("Start Processing: ", filepath_to_protein_csv)
     print("Outfolder: ", out_folder)
-    
-    
     print("\n\nLoading model, ... could take a while \n\n ")
     # LOAD MODEL AND PUT TO GPU / Validation: higher similiarity ok: 50%
     model, alphabet = torch.hub.load("facebookresearch/esm:main", "esm2_t33_650M_UR50D")
@@ -91,7 +68,7 @@ def main():
             if ";" in line:
                 pid, sequence = line.split(";")
                 cjm1 = get_categorical_jacobian(sequence, model, alphabet, device)
-                contact_map = get_contacts(cjm1, model, alphabet)
+                contact_map = get_contacts(cjm1)
                 out_path = os.path.join(out_folder, pid+".npy")
                 np.save(out_path, contact_map)
 

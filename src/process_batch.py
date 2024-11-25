@@ -1,6 +1,6 @@
 # Usage
-# pip install tqdm scipy numpy jax h5py
-# python process_batch train_X.csv output_folder/ <apc>
+# pip install tqdm scipy numpy jax 
+# python process_batch train_X.csv output_folder/
 # train_X.csvs are on Google Drive
 
 
@@ -11,11 +11,9 @@ import json
 from tqdm import tqdm 
 import numpy as np
 from scipy.special import softmax
-from utils import *
 import random 
 import matplotlib.pyplot as plt
 import sys
-
 
 def get_categorical_jacobian(seq, model, alphabet, device):
   # ∂in/∂out
@@ -69,17 +67,13 @@ def do_apc(x, rm=1):
 def main():
     # Usage
     # pip install tqdm scipy numpy jax h5py
-    # python process_batch train_X.csv output_folder/ <apc>
-    # apc argument is optional
+    # python process_batch train_X.csv output_folder/
     
     filepath_to_protein_csv = sys.argv[1]
     out_folder = sys.argv[2]
-    apc_on = True if sys.argv[3] == "apc" else False
+    out_folder_files = os.listdir(out_folder)
     print("Start Processing: ", filepath_to_protein_csv)
-    print("Outfolder: ", out_folder)
-    print(f"APC?: {apc_on}")
-    
-    
+    print("Outfolder: ", out_folder)    
     print("\n\nLoading model, ... could take a while \n\n ")
     model, alphabet = torch.hub.load("facebookresearch/esm:main", "esm2_t33_650M_UR50D")
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -89,16 +83,23 @@ def main():
     print("Model loading successful")
     
     # Load csv part
+    # with open("times.csv", "w") as times_csv:
     with open(filepath_to_protein_csv, "r") as rf:
-        lines = rf.read().split("\n")
-        print(f"Found {len(lines)-1} Proteins")
-        for line in tqdm(lines, desc="Processing proteins:"):
-            if ";" in line:
-                pid, sequence = line.split(";")
-                cjm1 = get_categorical_jacobian(sequence, model, alphabet, device)
-                contact_map = get_contacts(cjm1, model, alphabet, apc=apc_on)
-                out_path = os.path.join(out_folder, pid+".npy")
-                np.save(out_path, contact_map)
+        lines = [e for e in rf.read().split("\n") if len(e) > 1 and ";" in e]
+        print(f"Found {len(lines)} Proteins")
+        for line in tqdm(lines):
+            # now = time.time()
+            pid, sequence = line.split(";")
+            # Skips already calculated matrices
+            if pid+".npy" in out_folder_files:
+                print(f"Skipping {pid}.npy")
+                continue
+            cjm1 = get_categorical_jacobian(sequence, model, alphabet, device)
+            contact_map = get_contacts(cjm1, model, alphabet, apc=True)
+            out_path = os.path.join(out_folder, pid+".npy")
+            np.save(out_path, contact_map)
+            # end = time.time()
+            # times_csv.write(f"{pid};{end - now};{len(sequence)}\n")                
 
 if __name__ == "__main__":
     main()

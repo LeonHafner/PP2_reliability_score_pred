@@ -7,7 +7,7 @@ import torch
 import numpy as np
 import esm
 
-from jacobian import *
+from jacobian import get_jacobian, get_contact_map
 
 parser = argparse.ArgumentParser(description="Process protein contact maps.")
 
@@ -36,7 +36,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Running on {device}")
 
 with open(args.input_csv, "r") as f:
-    lines = [line.strip().split(';') for line in f.readlines() if line.strip()]
+    lines = [line.strip().split(',') for line in f.readlines() if line.strip()]
 
 for pid, seq in tqdm(lines):
     jacobian = get_jacobian(seq, model, alphabet, device)

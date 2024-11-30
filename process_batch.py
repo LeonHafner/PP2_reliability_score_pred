@@ -26,7 +26,7 @@ print(f"APC: {args.apc}")
 print(f"Symmetrizing: {args.sym}")
 
 if not os.path.exists(args.outdir):
-        os.makedirs(args.outdir)
+    os.makedirs(args.outdir)
 
 print("Loading model...")
 model, alphabet = esm.pretrained.esm2_t33_650M_UR50D()

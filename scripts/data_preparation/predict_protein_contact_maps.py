@@ -71,12 +71,13 @@ def get_jacobian(seq, model, alphabet, device):
 
 def get_contact_map(jacobian, center=False, apc=False, sym=False):
     if center:
-        jacobian = jacobian - torch.mean(jacobian, dim=dim, keepdim=True)
+        for i in range(4):
+            jacobian = jacobian - jacobian.mean(dim=i, keepdim=True)
     
     contact_map = torch.sqrt(torch.sum(jacobian ** 2, dim=(1, 3))).fill_diagonal_(0)
 
     if apc:
-        contact_map = apply_apc(contact_map)
+        contact_map = apply_apc(contact_map).fill_diagonal_(0)
     
     if sym:
         contact_map = (contact_map + contact_map.T) / 2

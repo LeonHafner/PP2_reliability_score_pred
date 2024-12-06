@@ -32,14 +32,14 @@ def get_jacobian(seq, model, alphabet, device):
     standard_amino_acids = 'LAGVSERTIDPKQNFYMHWC'
     token_to_idx = {tok: i for i, tok in enumerate(alphabet.all_toks)}
     aa_indices = [token_to_idx[aa] for aa in standard_amino_acids]
-    
+
     batch_converter = alphabet.get_batch_converter()
     data = [("stub_id", seq)]
     batch_tokens = batch_converter(data)[2].to(device)
 
     with torch.no_grad():
         token_logits = model(batch_tokens, repr_layers=[], return_contacts=False)["logits"]
-    
+
     # Remove start and end tokens ([CLS] and [EOS]) and get standard aa_indices
     logits_original = token_logits[0, 1:-1, aa_indices]
 
@@ -58,14 +58,14 @@ def get_jacobian(seq, model, alphabet, device):
         with torch.no_grad():
             results_subst = model(batch_tokens_subst, repr_layers=[], return_contacts=False)
             token_logits_subst = results_subst["logits"]
-        
+
         # Remove start and end tokens ([CLS] and [EOS]) and get standard aa_indices
         logits_subst = token_logits_subst[:, 1:-1, aa_indices]
 
         for s_idx in range(A):
             delta_logits = logits_subst[s_idx] - logits_original
             J[i, s_idx, :, :] = delta_logits
-    
+
     return J
 
 
@@ -73,15 +73,15 @@ def get_contact_map(jacobian, center=False, apc=False, sym=False):
     if center:
         for i in range(4):
             jacobian = jacobian - jacobian.mean(dim=i, keepdim=True)
-    
+
     contact_map = torch.sqrt(torch.sum(jacobian ** 2, dim=(1, 3))).fill_diagonal_(0)
 
     if apc:
         contact_map = apply_apc(contact_map).fill_diagonal_(0)
-    
+
     if sym:
         contact_map = (contact_map + contact_map.T) / 2
-    
+
     return contact_map
 
 
@@ -123,11 +123,14 @@ with open(args.input_csv, "r") as f:
     lines = [line.strip().split(',') for line in f.readlines() if line.strip()]
 
 for pid, seq in tqdm(lines):
-    jacobian = get_jacobian(seq, model, alphabet, device)
-    
-    contact_map = get_contact_map(jacobian, center=args.center, apc=args.apc, sym=args.sym)
+    if not os.path.exists(os.path.join(args.outdir, f"{pid}.npy")):
+        jacobian = get_jacobian(seq, model, alphabet, device)
 
-    if isinstance(contact_map, torch.Tensor):
-        contact_map = contact_map.cpu().numpy()
+        contact_map = get_contact_map(jacobian, center=args.center, apc=args.apc, sym=args.sym)
 
-    np.save(os.path.join(args.outdir, f"{pid}.npy"), contact_map)
+        if isinstance(contact_map, torch.Tensor):
+            contact_map = contact_map.cpu().numpy()
+
+        np.save(os.path.join(args.outdir, f"{pid}.npy"), contact_map)
+    else:
+        print(f"{pid}.npy already exists, skipping!")
